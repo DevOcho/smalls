@@ -16,12 +16,22 @@ Where your `module.model` is the import path to your Peewee Model (or where ever
 your database object is) and where your `object` is the Peewee database object.
 We will do the following with what you put in there:
 
-```
+```python
 from <model> import <object>
 ```
+2) Create a table in your model
 
-2) Create a `migrations` folder
-3) If you want to use `smalls init` and `smalls seed` you will need to create `initdb.py` and `seed.py` files respectively.
+```python
+class MigrationHistory(BaseModel):
+    """Database Migration History"""
+
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True)
+    migrated_at = DateTimeField(null=False, default=datetime.now)
+```
+
+3) Create a `migrations` folder
+4) If you want to use `smalls init` and `smalls seed` you will need to create `initdb.py` and `seed.py` files respectively.
 
 
 ## Usage
