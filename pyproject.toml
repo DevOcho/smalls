@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "smalls"
+version = "0.1.0"
+description = "Python Peewee Database Aid - Migration / Rollback, Init, Seed, and Status"
+authors = ["Kenny Pyatt <kenny.pyatt@gmail.com>"]
+license = "LICENSE"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1.7"
+rich = "^13.7.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
