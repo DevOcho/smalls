@@ -132,6 +132,10 @@ def rollback(number):
 @cli.command()
 def status():
     """Status of the database migrations"""
+
+    # Local vars
+    last_number = "0000"
+
     click.echo("Getting Status...")
     print()
 
