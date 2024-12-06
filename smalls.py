@@ -34,9 +34,9 @@ MigrationHistory = peewee_model.MigrationHistory
 def cli():
     """Peewee Database Manager"""
 
-    rprint("[sky_blue2]=" * 35)
-    rprint("[sky_blue2]| Smalls - Peewee Database Aid :thumbs_up: |")
-    rprint("[sky_blue2]=" * 35)
+    rprint("[sky_blue2]=" * 39)
+    rprint("[sky_blue2]| Smalls - Peewee Database Manager :thumbs_up: |")
+    rprint("[sky_blue2]=" * 39)
     rprint("")
     print("Running at:", datetime.now())
 
@@ -272,7 +272,7 @@ db.create_tables([some_table])
 
 # Drop a table
 from module.model import some_table
-db.drop_table([some_table])
+db.drop_tables([some_table])
 
 # Migrator powered commands ---------------------------------------------------
 pw_migrate(
