@@ -61,11 +61,15 @@ def create(description):
         ./smalls.py create removing_two_columns_from_table_baz
     """
 
+    # Local Vars
+    last_number = "0000"
+
     click.echo("Creating a new file")
 
     # Get the next file number from the files in the folder
     current_files = sorted(glob("migrations/*.py"))
-    last_number = current_files[-1:][0].split("/")[1][:4]
+    if current_files:
+        last_number = current_files[-1:][0].split("/")[1][:4]
 
     # Veriify that we got a number and it's right
     if len(last_number) >= 4:
