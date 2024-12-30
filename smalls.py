@@ -101,11 +101,11 @@ def rollback(number):
     The `rollback` command needs a number to rollback too.
     The number should be the whole 4 digits.
 
-        migrate.py rollback 1337
+        smalls.py rollback 1337
 
     To go all the way back to the beginning issue the following:
 
-        migrate.py rollback 0000
+        smalls.py rollback 0000
 
     """
 
