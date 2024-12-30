@@ -1,7 +1,7 @@
 # smalls
 Python Peewee Database Aid - Migration / Rollback, Init, Seed, and Status
 
-`smalls` is a utility that creates a process around Peewee's Playhouse.migrate
+`smalls.py` is a utility that creates a process around Peewee's Playhouse.migrate
 utility.  You can learn more here: [Peewee Migrate Docs](https://peewee.readthedocs.io/en/latest/peewee/playhouse.html#migrate).
 
 ## Installation
@@ -34,12 +34,12 @@ class MigrationHistory(BaseModel):
 ```
 
 3) Create a `migrations` folder
-4) If you want to use `smalls init` and `smalls seed` you will need to create `initdb.py` and `seed.py` files respectively.
+4) If you want to use `smalls.py init` and `smalls.py seed` you will need to create `initdb.py` and `seed.py` files respectively.
 
 
 ## Usage
 
-Smalls currently has 6 commands.  You can see those by running `smalls --help`.
+Smalls currently has 6 commands.  You can see those by running `smalls.py --help`.
 
 ```
 Usage: smalls.py [OPTIONS] COMMAND [ARGS]...
@@ -60,7 +60,7 @@ Commands:
 
 Each individual command also has a help feature which you can access by running that command with `--help`.
 
-For example, `smalls migrate --help`
+For example, `smalls.py migrate --help`
 
 ### Create a new migration
 
@@ -106,7 +106,7 @@ def rollback():
     )
 ```
 
-Note: we've excluded the boiler-plate includes that `smalls` adds automatically to make your life better.
+Note: we've excluded the boiler-plate includes that `smalls.py` adds automatically to make your life better.
 
 In every migration file we include the rollback function as well.  This let's
 you keep the change and rollback code together.  This also allows you to
@@ -135,7 +135,7 @@ Running Migration: migrations/0001_adding_the_password_reset_count_field_to_user
 
 ### Rollback the migration
 
-This is pretty straight forward.  You need to give `smalls` the number of the
+This is pretty straight forward.  You need to give `smalls.py` the number of the
 rollback you want to perform.
 
 ```bash
@@ -151,8 +151,8 @@ If you want to rollback to the very beginning you can use 0000 as the number.
 ### Initialize and seed a databse
 
 At DevOcho we use `initdb.py` and `seed.py` for our database initialization and
-data seeding, respectively.  Smalls has a convenience method for running those
-if you wanted to include it in your process.
+data seeding, respectively.  `smalls.py` has a convenience method for running
+those if you wanted to include it in your process.
 
 ```bash
 ./smalls.py init
