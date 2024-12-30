@@ -142,11 +142,25 @@ rollback you want to perform.
 ./smalls.py rollback 0123
 ```
 
+Note: that the number of the file you include will NOT be rolled back!  You need to go one past the number you want.
+
 If you want to rollback to the very beginning you can use 0000 as the number.
 
 ```bash
 ./smalls.py rollback 0000
 ```
+
+You can think of it like this:
+
+```text
+0000 Initial database
+0001 Your update
+0002 Some future update
+```
+
+Rolling back to 0001 would rollback "to" your change but not run that script.
+We did this because Computer Scientists count from 0 and this makes
+sense to us but it can cause some confusion if you are unaware.
 
 ### Initialize and seed a databse
 
