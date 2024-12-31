@@ -19,12 +19,16 @@ Where your `module.model` is the import path to your Peewee Model (or where ever
 your database object is) and where your `object` is the Peewee database object.
 We will do the following with what you put in there:
 
-```python
-from <model> import <object>
+```python3
+from model import object
 ```
+
+So if you name your file `model.py` and inside that model the Peewee object is `db` then you
+would set the module.model to `model.db`.
+
 2) Create a table in your model
 
-```python
+```python3
 class MigrationHistory(BaseModel):
     """Database Migration History"""
 
@@ -90,19 +94,21 @@ at the top of new migration scripts so you can quickly reference how to make
 changes.  For our above example, we would build code that looks like the
 following:
 
-```python
+```python3
 from peewee import IntegerField
+
 
 def migrate():
     """Migration code goes here"""
     pw_migrate(
-        migrator.add_column('users', 'reset_count', IntegerField(default=0)),
+        migrator.add_column("users", "reset_count", IntegerField(default=0)),
     )
+
 
 def rollback():
     """Rollback code goes here"""
     pw_migrate(
-        migrator.drop_column('users', 'reset_count'),
+        migrator.drop_column("users", "reset_count"),
     )
 ```
 
@@ -162,7 +168,7 @@ Rolling back to 0001 would rollback "to" your change but not run that script.
 We did this because Computer Scientists count from 0 and this makes
 sense to us but it can cause some confusion if you are unaware.
 
-### Initialize and seed a databse
+### Initialize and seed a database
 
 At DevOcho we use `initdb.py` and `seed.py` for our database initialization and
 data seeding, respectively.  `smalls.py` has a convenience method for running

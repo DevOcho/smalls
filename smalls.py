@@ -5,14 +5,15 @@
 
 # Python Modules
 import configparser
-from datetime import datetime
-from importlib import import_module
-from glob import glob
 import os
 import sys
+from datetime import datetime
+from glob import glob
+from importlib import import_module
 
 # PIP Modules
 import click
+from peewee import DatabaseError
 from rich import print as rprint
 
 # Global settings for click
@@ -98,10 +99,14 @@ def create(description):
 def rollback(number):
     """Rollback migrations on the database
 
-    The `rollback` command needs a number to rollback too.
-    The number should be the whole 4 digits.
+    The `rollback` command needs a "database version" number
+    to rollback too.  The number should be the whole 4 digits.
 
         smalls.py rollback 1337
+
+    Note: This will set 1337 as the current version of the database.
+    It will not run the rollback() inside of the 1337 file.  If you want to
+    rollback 1337, set the database version to 1336.
 
     To go all the way back to the beginning issue the following:
 
@@ -186,12 +191,18 @@ def run_rollback(file):
     rprint(print_str, end="")
     try:
         migration = import_module("migrations." + file)
-        migration.rollback()
+        # Let's wrap this in a transaction just in case
+        with peewee_model.atomic() as transaction:
+            try:
+                migration.rollback()
+            except DatabaseError as exp:
+                transaction.rollback()
+                raise DatabaseError from exp
         rprint(" [green]Successful[/green]")
-    except Exception as exp:
+    except (DatabaseError, ImportError) as exp:
         rprint(" [red]FAILED[/red]")
         rprint(f" Error was: [yellow1]{exp}[/yellow1]")
-        print()
+        print()  # intentionally print a blank line
         sys.exit()
 
     # Let's tell the database
@@ -254,12 +265,17 @@ def run_migration(file):
     rprint(print_str, end="")
     try:
         migration = import_module(module_name)
-        migration.migrate()
+        with peewee_model.atomic() as transaction:
+            try:
+                migration.migrate()
+            except DatabaseError as exp:
+                transaction.rollback()
+                raise DatabaseError from exp
         rprint(" [green]Successful[/green]")
-    except Exception as exp:
+    except (DatabaseError, ImportError) as exp:
         rprint(" [red]FAILED[/red]")
         rprint(f" Error was: [yellow1]{exp}[/yellow1]")
-        print()
+        print()  # printing a blank line for readability
         sys.exit()
 
     # Let's tell the database
@@ -316,6 +332,8 @@ pw_migrate(
         Check('price >= 0'))
 )
 """
+# Pylint doesn't like names that start with numbers
+pylint: disable=C0103
 
 from playhouse.migrate import MySQLMigrator
 from playhouse.migrate import migrate as pw_migrate
