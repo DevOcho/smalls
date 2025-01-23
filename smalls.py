@@ -13,7 +13,8 @@ from importlib import import_module
 
 # PIP Modules
 import click
-from peewee import DatabaseError
+from peewee import AutoField, CharField, DatabaseError, DateTimeField, Model
+from playhouse.shortcuts import ThreadSafeDatabaseMetadata
 from rich import print as rprint
 
 # Global settings for click
@@ -24,11 +25,36 @@ CONTEXT_SETTINGS = {
 
 # Load the config file
 CONFIG = configparser.ConfigParser()
-CONFIG.read("config.ini")
+if "SMALLS_CONFIG" in os.environ:
+    CONFIG.read(os.environ["SMALLS_CONFIG"])
+else:
+    CONFIG.read("config.ini")
 
 # Local models
 peewee_model = import_module(CONFIG["smalls"]["model"])
-MigrationHistory = peewee_model.MigrationHistory
+
+
+# Let's make sure we are ready to handle the migration history via the table
+class MigrationHistory(Model):
+    """Database Migration History"""
+
+    id = AutoField(primary_key=True)
+    name = CharField(unique=True)
+    migrated_at = DateTimeField(null=False, default=datetime.now)
+
+    class Meta:  # pylint: disable=R0903
+        """Peewee Configuration"""
+
+        database = peewee_model
+        legacy_table_names = False
+        model_metadata_class = ThreadSafeDatabaseMetadata
+
+
+# Check if the MigrationHistory table exists
+if not peewee_model.table_exists(MigrationHistory):
+    # If the table doesn't exist, create it
+    peewee_model.create_tables([MigrationHistory])
+    rprint("[red]Table MigrationHistory created.[/red]")
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -128,7 +154,7 @@ def rollback(number):
         MigrationHistory.migrated_at.desc(), MigrationHistory.id.desc()
     )
 
-    for item in history:
+    for item in history:  # pylint: disable=not-an-iterable
         item_number = item.name[:4]
         if int(number) < int(item_number):
             run_rollback(item.name)
@@ -191,13 +217,7 @@ def run_rollback(file):
     rprint(print_str, end="")
     try:
         migration = import_module("migrations." + file)
-        # Let's wrap this in a transaction just in case
-        with peewee_model.atomic() as transaction:
-            try:
-                migration.rollback()
-            except DatabaseError as exp:
-                transaction.rollback()
-                raise DatabaseError from exp
+        migration.rollback()
         rprint(" [green]Successful[/green]")
     except (DatabaseError, ImportError) as exp:
         rprint(" [red]FAILED[/red]")
@@ -265,12 +285,7 @@ def run_migration(file):
     rprint(print_str, end="")
     try:
         migration = import_module(module_name)
-        with peewee_model.atomic() as transaction:
-            try:
-                migration.migrate()
-            except DatabaseError as exp:
-                transaction.rollback()
-                raise DatabaseError from exp
+        migration.migrate()
         rprint(" [green]Successful[/green]")
     except (DatabaseError, ImportError) as exp:
         rprint(" [red]FAILED[/red]")
@@ -333,7 +348,7 @@ pw_migrate(
 )
 """
 # Pylint doesn't like names that start with numbers
-pylint: disable=C0103
+# pylint: disable=C0103
 
 from playhouse.migrate import MySQLMigrator
 from playhouse.migrate import migrate as pw_migrate
