@@ -23,6 +23,13 @@ CONTEXT_SETTINGS = {
     "ignore_unknown_options": True,
 }
 
+# Are we in Dev or Prod?
+if "SMALLS_ENV" in os.environ:
+    if os.environ["SMALLS_ENV"] == "PROD":
+        ENVIRONMENT = "PROD"
+else:
+    ENVIRONMENT = "DEV"
+
 # Load the config file
 CONFIG = configparser.ConfigParser()
 if "SMALLS_CONFIG" in os.environ:
@@ -32,6 +39,7 @@ else:
 
 # Local models
 peewee_model = import_module(CONFIG["smalls"]["model"])
+peewee_model = peewee_model.db
 
 
 # Let's make sure we are ready to handle the migration history via the table
@@ -291,7 +299,13 @@ def run_migration(file):
         rprint(" [red]FAILED[/red]")
         rprint(f" Error was: [yellow1]{exp}[/yellow1]")
         print()  # printing a blank line for readability
-        sys.exit()
+        # If we are in DEV we might want to continue
+        if ENVIRONMENT == "DEV":
+            prompt = input(
+                "Since we are in DEV, do you want to continue as if it worked? [Y/n]"
+            )
+            if "n" in str(prompt).lower():
+                sys.exit()
 
     # Let's tell the database
     MigrationHistory.create(name=file[11:-3])

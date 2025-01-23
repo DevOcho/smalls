@@ -26,7 +26,17 @@ from model import object
 So if you name your file `model.py` and inside that model the Peewee object is `db` then you
 would set the module.model to `model.db`.
 
-2) Create a table in your model
+2) Create a `migrations` folder
+3) Optional database initialization and seeding:
+
+If you want to use `smalls.py init` and `smalls.py seed` you will need to
+create `initdb.py` and `seed.py` files respectively.  Since every project is
+so different, Smalls assumes those files know what to do and it just runs them.
+
+Note: Smalls will create a table in your database to track migrations that it has run.  It will do this
+on the first run if it does not already exist.
+
+The database will look like the following (as represented in a Peewee class):
 
 ```python3
 class MigrationHistory(BaseModel):
@@ -36,9 +46,6 @@ class MigrationHistory(BaseModel):
     name = CharField(unique=True)
     migrated_at = DateTimeField(null=False, default=datetime.now)
 ```
-
-3) Create a `migrations` folder
-4) If you want to use `smalls.py init` and `smalls.py seed` you will need to create `initdb.py` and `seed.py` files respectively.
 
 
 ## Usage
@@ -65,6 +72,22 @@ Commands:
 Each individual command also has a help feature which you can access by running that command with `--help`.
 
 For example, `smalls.py migrate --help`
+
+### Environment Variables
+
+Smalls looks for two optional environment variables:
+
+```bash
+SMALLS_CONFIG="/path/to/config.ini"
+SMALLS_ENV="[DEV|PROD]"
+```
+
+`SMALLS_CONFIG` defaults to `config.ini` and `SMALLS_ENV` defaults to DEV.  So you wanted to use
+a different config file for production you might run smalls like this:
+
+```bash
+SMALLS_CONFIG="/path/to/product.config.ini" SMALLS_END="PROD" ./smalls.py migrate
+```
 
 ### Create a new migration
 
