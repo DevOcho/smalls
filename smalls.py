@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-    Smalls - Peewee Database Aid
-"""
+"""Smalls - Peewee Database Aid."""
 
 # Python Modules
 import configparser
@@ -13,7 +11,14 @@ from importlib import import_module
 
 # PIP Modules
 import click
-from peewee import AutoField, CharField, DatabaseError, DateTimeField, Model
+from peewee import (
+    AutoField,
+    CharField,
+    DatabaseError,
+    DateTimeField,
+    IntegerField,
+    Model,
+)
 from playhouse.shortcuts import ThreadSafeDatabaseMetadata
 from rich import print as rprint
 
@@ -24,21 +29,24 @@ CONTEXT_SETTINGS = {
 }
 
 # Are we in Dev or Prod?
+ENVIRONMENT = "DEV"
 if "SMALLS_ENV" in os.environ:
     if os.environ["SMALLS_ENV"] == "PROD":
         ENVIRONMENT = "PROD"
-else:
-    ENVIRONMENT = "DEV"
 
 # Load the config file
 CONFIG = configparser.ConfigParser()
-if "SMALLS_CONFIG" in os.environ:
-    CONFIG.read(os.environ["SMALLS_CONFIG"])
-else:
+try:
     CONFIG.read("config.ini")
+except FileNotFoundError:
+    rprint("[red]Config file not found![/red]")
+
+smalls_version = os.getenv("SMALLS_VERSION") or CONFIG["smalls"]["smalls_version"]
+model = os.getenv("SMALLS_MODEL") or CONFIG["smalls"]["model"]
+
 
 # Local models
-peewee_model = import_module(CONFIG["smalls"]["model"])
+peewee_model = import_module(model)
 peewee_model = peewee_model.db
 
 
@@ -49,6 +57,7 @@ class MigrationHistory(Model):
     id = AutoField(primary_key=True)
     name = CharField(unique=True)
     migrated_at = DateTimeField(null=False, default=datetime.now)
+    version = IntegerField(null=False)
 
     class Meta:  # pylint: disable=R0903
         """Peewee Configuration"""
@@ -118,9 +127,7 @@ def create(description):
 
     # Prepare the description
     description = description.replace(" ", "_")  # Replace all spaces with underscores
-    file_name = (
-        "migrations/" + str(int(last_number) + 1).zfill(4) + "_" + description + ".py"
-    )
+    file_name = "migrations/" + str(int(last_number) + 1).zfill(4) + "_" + description + ".py"
 
     # Make the file
     create_migration_file(file_name)
@@ -191,9 +198,7 @@ def status():
     for file in migration_files:
         file_number = file.split("/")[1][:4]
         if file_number == last_number:
-            rprint(
-                f"Current Migration: :arrow_right: [green]{file}[/green] :arrow_left:"
-            )
+            rprint(f"Current Migration: :arrow_right: [green]{file}[/green] :arrow_left:")
         if file_number > last_number:
             rprint(f"Future Migration:    [grey70]{file}[/grey70]")
 
@@ -216,7 +221,50 @@ def seed():
         os.system("./seed.py")
 
 
+@cli.command()
+def magic():
+    """Run magic"""
+
+    history = MigrationHistory.select()
+
+    # Migrate if there isn't migrations
+    try:
+        last_migration = history[-1]
+    except IndexError:
+        lets_migrate()
+        return
+
+    # Run migrations (container version is greater than last migration record)
+    if int(smalls_version) > last_migration.version:
+        lets_migrate()
+
+    # Run rollback (container version is less than last migration record)
+    elif int(smalls_version) < last_migration.version:
+        magic_rollback()
+    else:  # Do nothing if is the same version
+        rprint("[green]No migration needed. Container version matches the last migration record.[/green]")
+
+
 # Utilities ===================================================================
+def magic_rollback():
+    """Run magic rollback"""
+
+    migrations = MigrationHistory.select()
+    goal_migrations = migrations.select().where(MigrationHistory.version == smalls_version).order_by("asc")
+    goal_migration = goal_migrations[-1]
+    ordered_migrations = migrations.select().order_by(MigrationHistory.name.desc())
+
+    rprint(f"Rolling back to [dark_orange]{goal_migration.name}[/dark_orange]")
+
+    for item in ordered_migrations:
+        if item.name == goal_migration.name:
+            break
+
+        run_rollback(item.name)
+
+    rprint("[green]Rollback finished[/green]")
+
+
 def run_rollback(file):
     """Run the migration file"""
 
@@ -252,11 +300,7 @@ def lets_migrate(number=0, recurse=False):
     # Get the next migration to run
     if history:
         if not recurse:
-            rprint(
-                "Last migration was: [i grey69]"
-                + history[-1:][0]["name"]
-                + "[/i grey69]"
-            )
+            rprint("Last migration was: [i grey69]" + history[-1:][0]["name"] + "[/i grey69]")
             print()
         last_number = history[-1:][0]["name"][:4]
         next_number = str(int(last_number) + 1).zfill(4)
@@ -301,14 +345,12 @@ def run_migration(file):
         print()  # printing a blank line for readability
         # If we are in DEV we might want to continue
         if ENVIRONMENT == "DEV":
-            prompt = input(
-                "Since we are in DEV, do you want to continue as if it worked? [Y/n]"
-            )
+            prompt = input("Since we are in DEV, do you want to continue as if it worked? [Y/n]")
             if "n" in str(prompt).lower():
                 sys.exit()
 
     # Let's tell the database
-    MigrationHistory.create(name=file[11:-3])
+    MigrationHistory.create(name=file[11:-3], version=smalls_version)
 
 
 def create_migration_file(file_name):
@@ -368,9 +410,7 @@ from playhouse.migrate import MySQLMigrator
 from playhouse.migrate import migrate as pw_migrate
 
 # Model from the config file\n'''
-    file_contents += (
-        f"from {CONFIG['smalls']['model']} import {CONFIG['smalls']['object']}"
-    )
+    file_contents += f"from {CONFIG['smalls']['model']} import {CONFIG['smalls']['object']}"
     file_contents += '''
 
 migrator = MySQLMigrator(db)
