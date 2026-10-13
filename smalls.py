@@ -62,18 +62,8 @@ SMALLS_VERSION_CONFIGURED = bool(os.getenv("SMALLS_VERSION")) or CONFIG.has_opti
 # has to be asked for, never inferred from an image version alone.
 ALLOW_AUTO_ROLLBACK = _env_flag("SMALLS_ALLOW_AUTO_ROLLBACK")
 
-if not MODEL_NAME:
-    rprint(
-        "[red]No model configured. Set `model` in the [smalls] section of "
-        "config.ini or the SMALLS_MODEL env var.[/red]"
-    )
-    sys.exit(1)
 
-# Local models
-peewee_model = getattr(import_module(MODEL_NAME), OBJECT_NAME)
-
-
-# Let's make sure we are ready to handle the migration history via the table
+# Not bound to a database here: connect_database() does that once a command runs.
 class MigrationHistory(Model):
     """Database Migration History"""
 
@@ -86,16 +76,38 @@ class MigrationHistory(Model):
     class Meta:  # pylint: disable=R0903
         """Peewee Configuration"""
 
-        database = peewee_model
         legacy_table_names = False
         model_metadata_class = ThreadSafeDatabaseMetadata
 
 
-# Check if the MigrationHistory table exists
-if not peewee_model.table_exists(MigrationHistory):
-    # If the table doesn't exist, create it
-    peewee_model.create_tables([MigrationHistory])
-    rprint("[red]Table MigrationHistory created.[/red]")
+def connect_database():
+    """Bind MigrationHistory to the project's database and create its table.
+
+    Every command calls this first. It is not done at import time so that
+    `smalls --help` and `smalls <command> --help` work with no config.ini and
+    no database.
+    """
+    if not MODEL_NAME:
+        rprint(
+            "[red]No model configured. Set `model` in the \\[smalls] section of "
+            "config.ini or the SMALLS_MODEL env var.[/red]"
+        )
+        sys.exit(1)
+
+    # The model and migrations/ are imported relative to the project root. That
+    # folder is on sys.path when running ./smalls.py from it, but not when
+    # running the installed `smalls` script.
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
+
+    database = getattr(import_module(MODEL_NAME), OBJECT_NAME)
+    MigrationHistory.bind(database, bind_refs=False, bind_backrefs=False)
+
+    # Check if the MigrationHistory table exists
+    if not database.table_exists(MigrationHistory):
+        # If the table doesn't exist, create it
+        database.create_tables([MigrationHistory])
+        rprint("[red]Table MigrationHistory created.[/red]")
 
 
 def latest_migration():
@@ -131,6 +143,8 @@ def cli():
 def migrate(number=0):
     """Run migrations on the database"""
 
+    connect_database()
+
     if number and not re.fullmatch(r"\d{4}", str(number)):
         rprint(" [red]Number not in correct format! Must be 4 digits.[/red]")
         sys.exit(1)
@@ -146,9 +160,11 @@ def create(description):
 
     For example:
 
-        ./smalls.py create "adding column foo to table bar"\n
-        ./smalls.py create removing_two_columns_from_table_baz
+        smalls create "adding column foo to table bar"\n
+        smalls create removing_two_columns_from_table_baz
     """
+
+    connect_database()
 
     # Local Vars
     last_number = "0000"
@@ -190,7 +206,7 @@ def rollback(number):
     The `rollback` command needs a "database version" number
     to rollback too.  The number should be the whole 4 digits.
 
-        smalls.py rollback 1337
+        smalls rollback 1337
 
     Note: This will set 1337 as the current version of the database.
     It will not run the rollback() inside of the 1337 file.  If you want to
@@ -198,9 +214,11 @@ def rollback(number):
 
     To go all the way back to the beginning issue the following:
 
-        smalls.py rollback 0000
+        smalls rollback 0000
 
     """
+
+    connect_database()
 
     if len(number) < 4 or len(number) > 4:
         rprint(" [red]Number not in correct format![/red]")
@@ -227,6 +245,8 @@ def rollback(number):
 @cli.command()
 def status():
     """Status of the database migrations"""
+
+    connect_database()
 
     # Local vars
     last_number = "0000"
@@ -273,6 +293,8 @@ def _run_script(path):
 @cli.command()
 def init():
     """Initialize the database"""
+    connect_database()
+
     click.echo("Initing the database")
 
     _run_script(INIT_SCRIPT)
@@ -281,6 +303,8 @@ def init():
 @cli.command()
 def seed():
     """Load developer seed data into the database"""
+    connect_database()
+
     click.echo("Seeding the database")
 
     _run_script(SEED_SCRIPT)
@@ -289,6 +313,8 @@ def seed():
 @cli.command()
 def magic():
     """Run magic"""
+
+    connect_database()
 
     last_migration = latest_migration()
 
@@ -318,7 +344,7 @@ def magic():
             rprint(
                 "[red]Container version is behind the last migration record "
                 f"({SMALLS_VERSION} < {last_migration.version}). Refusing to "
-                "auto-rollback the schema: run `smalls.py rollback <number>` "
+                "auto-rollback the schema: run `smalls rollback <number>` "
                 "yourself, or set SMALLS_ALLOW_AUTO_ROLLBACK=true to let magic "
                 "do it.[/red]"
             )
@@ -507,7 +533,7 @@ def warn_skipped_migrations():
         )
         for file in skipped:
             rprint(f"    {file}")
-        rprint("[yellow]Run each with `smalls.py migrate -n <number>`.[/yellow]")
+        rprint("[yellow]Run each with `smalls migrate -n <number>`.[/yellow]")
 
 
 def lets_migrate(number=0, recurse=False):
