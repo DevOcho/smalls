@@ -1,6 +1,6 @@
 # smalls
 
-Smalls is a single-file command line tool that runs numbered database migrations
+Smalls is a small command line tool that runs numbered database migrations
 for [Peewee](https://docs.peewee-orm.com/) projects: create, migrate, rollback,
 status, init and seed.  It is a thin process around Peewee's
 [playhouse.migrate](https://docs.peewee-orm.com/en/latest/peewee/playhouse.html#migrate).
@@ -14,22 +14,26 @@ status, init and seed.  It is a thin process around Peewee's
 
 ## Quick start
 
-1. Install the dependencies in your project:
+1. Add smalls to your project's `requirements.txt` and install it:
 
-   ```bash
-   pip install peewee click rich
+   ```text
+   smalls @ git+https://github.com/DevOcho/smalls@v0.2.0
    ```
 
-   You also need the driver for your database (for example `psycopg2` for
-   PostgreSQL or `pymysql` for MySQL).  Smalls does not install it for you.
-
-2. Copy `smalls.py` into the root folder of your project and make it executable:
-
    ```bash
-   chmod +x smalls.py
+   pip install -r requirements.txt
    ```
 
-3. Create a `config.ini` next to it:
+   `@main` tracks the latest unreleased code.  For a one-off install, run
+   `pip install "smalls @ git+https://github.com/DevOcho/smalls@v0.2.0"`.
+
+   This installs click, rich and peewee.  The driver for your database (for
+   example `psycopg2` for PostgreSQL or `pymysql` for MySQL) stays your own
+   project's dependency.  A `requirements.txt` that uses `--hash` lines cannot
+   install a git requirement (pip rejects VCS requirements in hash-checking
+   mode), so those projects need a PyPI release.
+
+2. Create a `config.ini` in the root folder of your project:
 
    ```ini
    [smalls]
@@ -41,21 +45,36 @@ status, init and seed.  It is a thin process around Peewee's
    object, and `object` is the name of that object.  Smalls does the equivalent
    of `from module.model import db`.
 
-4. Create the migrations folder and your first migration:
+3. Create the migrations folder and your first migration:
 
    ```bash
    mkdir migrations
-   ./smalls.py create "adding the password_reset_count field to users"
+   smalls create "adding the password_reset_count field to users"
    ```
 
-5. Edit the new file in `migrations/`, then run it:
+4. Edit the new file in `migrations/`, then run it:
 
    ```bash
-   ./smalls.py migrate
+   smalls migrate
    ```
 
-Always run smalls from the root folder of your project.  It looks for
-`config.ini`, `migrations/` and your model relative to that folder.
+Always run `smalls` from the root folder of your project.  It reads
+`config.ini` and `migrations/` and imports your model relative to the current
+folder, which it puts first on the import path.
+
+### What your project needs
+
+- A `config.ini` with `[smalls] model=...` (or the `SMALLS_MODEL` environment
+  variable).
+- A `migrations/` folder.
+- Run `smalls` from the project root.
+
+### Using a copied `smalls.py`
+
+Copying `smalls.py` into your project is still supported.
+`./smalls.py <command>` behaves the same, and then needs
+`pip install peewee click rich`.  If you switch to the installed package, delete
+the copy.
 
 ## Requirements
 
@@ -63,11 +82,12 @@ Always run smalls from the root folder of your project.  It looks for
 |-------------|---------|
 | Python | 3.10 or newer |
 | peewee | 3.17 or newer (3.x) |
-| click | 8.3 or newer |
-| rich | 14.2 or newer |
+| click | 8.1 or newer (8.x) |
+| rich | 13.0 or newer |
 | Database driver | Whatever your Peewee database needs |
 
-Exact pinned versions are in `requirements.txt`.
+`requirements.txt` in this repository pins the versions smalls is developed
+against; it is not needed to use smalls.
 
 ## Configuration
 
@@ -95,8 +115,8 @@ section of `config.ini`.  The order is always:
 | `SMALLS_CONFIG` | `config.ini` | every command | Path to the config file |
 | `SMALLS_ALLOW_AUTO_ROLLBACK` | off | `magic` | Lets `magic` roll the schema back.  On with `1`, `true`, `yes` or `on` |
 
-Only `model` is required.  If it is missing, smalls stops with an error before
-running any command.
+Only `model` is required.  If it is missing, every command stops with an error.
+`--help` still works.
 
 ### Examples
 
@@ -114,24 +134,24 @@ seed_script=scripts/seed.py
 Use a different config file for production:
 
 ```bash
-SMALLS_CONFIG="/path/to/production.config.ini" ./smalls.py migrate
+SMALLS_CONFIG="/path/to/production.config.ini" smalls migrate
 ```
 
 Run without any `config.ini`, for example in CI:
 
 ```bash
-SMALLS_MODEL="app.database" SMALLS_OBJECT="db" ./smalls.py status
+SMALLS_MODEL="app.database" SMALLS_OBJECT="db" smalls status
 ```
 
 Let the deployed image version drive the migrations:
 
 ```bash
-SMALLS_VERSION="1.9.4" ./smalls.py magic
+SMALLS_VERSION="1.9.4" smalls magic
 ```
 
 ## Commands
 
-Run `./smalls.py --help` to list them, and `./smalls.py <command> --help` for
+Run `smalls --help` to list them, and `smalls <command> --help` for
 the details of one.
 
 | Command | What it does |
@@ -148,7 +168,7 @@ the details of one.
 ### Create a new migration
 
 ```bash
-./smalls.py create "adding the password_reset_count field to users"
+smalls create "adding the password_reset_count field to users"
 ```
 
 This creates a file in the migrations folder with a sequential, zero padded number.
@@ -185,7 +205,7 @@ def rollback():
     )
 ```
 
-Note: we've excluded the boiler-plate includes that `smalls.py` adds automatically.
+Note: we've excluded the boiler-plate includes that `smalls` adds automatically.
 
 Keeping the change and its rollback in the same file also lets you manage data
 in a production database in the same script.
@@ -193,7 +213,7 @@ in a production database in the same script.
 ### Run the migrations
 
 ```bash
-./smalls.py migrate
+smalls migrate
 ```
 
 ```
@@ -213,23 +233,23 @@ the next numbers in order.
 To run a single migration, pass its 4 digit number:
 
 ```bash
-./smalls.py migrate -n 0002
+smalls migrate -n 0002
 ```
 
 ### Rollback
 
-Give `smalls.py` the 4 digit number you want to roll back **to**.  It asks for
+Give `smalls rollback` the 4 digit number you want to roll back **to**.  It asks for
 confirmation first, and answering no stops it.
 
 ```bash
-./smalls.py rollback 0123
+smalls rollback 0123
 ```
 
 The migration with the number you give is NOT rolled back.  To undo it you need
 to go one lower.  To roll back everything, use `0000`:
 
 ```bash
-./smalls.py rollback 0000
+smalls rollback 0000
 ```
 
 You can think of it like this:
@@ -262,7 +282,7 @@ the last migration stamped with that version.  It refuses if no migration
 carries that version, or if `SMALLS_VERSION` was not set at all.
 
 ```bash
-SMALLS_VERSION="1.8.0" SMALLS_ALLOW_AUTO_ROLLBACK="true" ./smalls.py magic
+SMALLS_VERSION="1.8.0" SMALLS_ALLOW_AUTO_ROLLBACK="true" smalls magic
 ```
 
 ### Initialize and seed a database
@@ -272,8 +292,8 @@ seeding.  Since every project is so different, smalls assumes those scripts know
 what to do and just runs them with the same Python interpreter.
 
 ```bash
-./smalls.py init
-./smalls.py seed
+smalls init
+smalls seed
 ```
 
 If the script does not exist, smalls says so and does nothing.  If the script
@@ -297,8 +317,8 @@ These hold in every environment:
 
 ## The migration history table
 
-Smalls connects to your database when it starts, for every command including
-`--help`.  On the first run it creates a `migration_history` table to track what
+Smalls connects to your database when a command runs (`--help` does not).  On
+the first run it creates a `migration_history` table to track what
 it has applied:
 
 ```python3
@@ -321,11 +341,13 @@ class MigrationHistory(Model):
   your deploys relied on that.
 - New migration files use `SchemaMigrator.from_database()` instead of a fixed
   MySQL migrator.  Existing migration files keep working as they are.
+- Smalls is now installed as a package.  Remove the copied `smalls.py` and call
+  `smalls` instead of `./smalls.py`.
 
 ## Working on smalls
 
-All of the code is in `smalls.py`.  There is no package to build: projects use
-smalls by copying that one file.
+All of the code is in `smalls.py`, shipped as a single-module package with a
+`smalls` console script (`[project.scripts]` in `pyproject.toml`).
 
 ### Set up
 
@@ -336,8 +358,8 @@ poetry install
 poetry run pre-commit install
 ```
 
-`poetry install` gives you the runtime dependencies plus `pre-commit` and
-`pylint`.
+`poetry install` also installs smalls itself in editable mode, plus
+`pre-commit`, `pylint` and `pytest`.
 
 ### Check your changes
 
@@ -348,40 +370,40 @@ poetry run pre-commit run --all-files
 This runs black, isort, flake8 (max line length 110) and pylint, the same hooks
 that run on every commit.
 
-There is no automated test suite yet.  Try your change against a throwaway
-SQLite project before opening a pull request:
-
 ```bash
-mkdir -p /tmp/smalls-sandbox/migrations && cd /tmp/smalls-sandbox
-printf 'from peewee import SqliteDatabase\ndb = SqliteDatabase("test.db")\n' > model.py
-printf '[smalls]\nmodel=model\nobject=db\nsmalls_version=1.0.0\n' > config.ini
-
-PYTHONPATH=. python /path/to/smalls/smalls.py create "first"
-PYTHONPATH=. python /path/to/smalls/smalls.py migrate
-PYTHONPATH=. python /path/to/smalls/smalls.py status
+poetry run pytest
 ```
+
+The tests run the installed `smalls` script against a throwaway SQLite project.
 
 ### Where things are in `smalls.py`
 
 | Section | What is there |
 |---------|---------------|
-| Top of the file | Settings (`_get_setting`), the `MigrationHistory` model, table creation |
+| Top of the file | Settings (`_get_setting`), the `MigrationHistory` model, `connect_database()` (binds the model, called first by every command) |
 | `@cli.command()` functions | One per command: `migrate`, `create`, `rollback`, `status`, `init`, `seed`, `magic` |
 | `# Utilities` | The work behind the commands: `lets_migrate`, `run_migration`, `run_rollback`, `magic_rollback`, directory validation |
 | `create_migration_file` | The template written by `create` |
+| `tests/test_cli.py` | Smoke tests that run the installed `smalls` script |
 
 ### Changing dependencies
 
-`pyproject.toml` is the source of truth.  `poetry.lock` and `requirements.txt`
-are generated from it, so do not edit them by hand:
+`pyproject.toml` is the source of truth.  Runtime dependencies live in
+`[project] dependencies`.  `poetry.lock` and `requirements.txt` are generated
+from it, so do not edit them by hand.  After editing, run:
 
 ```bash
-poetry add <package>
+poetry lock
 poetry export -f requirements.txt --output requirements.txt
 ```
 
 `poetry export` needs the
 [export plugin](https://github.com/python-poetry/poetry-plugin-export).
+
+### Releasing
+
+Bump `version` in `pyproject.toml` and tag the commit `vX.Y.Z`.  Optionally run
+`poetry build` and `poetry publish`.
 
 ### Things to keep true
 
@@ -390,3 +412,5 @@ poetry export -f requirements.txt --output requirements.txt
 - Exit with a non-zero code on every failure, so deploy pipelines notice.
 - Do not hardcode project paths or database types.  Add a setting instead, and
   document it in the [Configuration](#configuration) tables.
+- Do nothing at import time that needs a config or a database; put it in
+  `connect_database()`.

@@ -1,22 +1,43 @@
-[tool.poetry]
+[project]
 name = "smalls"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python Peewee Database Aid - Migration / Rollback, Init, Seed, and Status"
-authors = ["Kenny Pyatt <kenny.pyatt@gmail.com>"]
-license = "LICENSE"
+authors = [{ name = "Kenny Pyatt", email = "kenny.pyatt@gmail.com" }]
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
+requires-python = ">=3.10,<4.0"
+keywords = ["peewee", "migrations", "database", "cli"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Database",
+]
+dependencies = [
+    "click>=8.1,<9.0",
+    "rich>=13.0",
+    "peewee>=3.17.0,<4.0.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-click = "^8.3.1"
-rich = "^14.2.0"
-peewee = "^3.17.0"
+[project.urls]
+Homepage = "https://github.com/DevOcho/smalls"
+Repository = "https://github.com/DevOcho/smalls"
+Issues = "https://github.com/DevOcho/smalls/issues"
+
+[project.scripts]
+smalls = "smalls:cli"
+
+[tool.poetry]
+packages = [{ include = "smalls.py" }]
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.0.0"
 pylint = "^3.3.0"
+pytest = "^8.3.0"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.2.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
